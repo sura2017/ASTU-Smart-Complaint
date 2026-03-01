@@ -87,6 +87,16 @@ I organized the project using a professional MVC-style structure:
 *   **Integrity:** Every ticket is mathematically linked to a student profile, providing a permanent audit trail for ASTU administrators.
 
 ---
+---
+
+## 🛠 Project Development Timeline
+Though the final repository was initialized recently, this project was developed over a structured 6-day lifecycle:
+
+*   **Day 1-2:** Backend Architecture Design. Implemented Node/Express server, MongoDB Schema relationships, and JWT Security.
+*   **Day 3:** Authentication Engine. Integrated Google OAuth 2.0 and GitHub Sign-On for unified access.
+*   **Day 4:** Core Logic & File Handling. Developed the Complaint Submission system using Multer for image processing.
+*   **Day 5:** Notification & AI Systems. Integrated Nodemailer for real-world SMTP email alerts and built the Logic-Based Assistant.
+*   **Day 6:** Frontend UI/UX & Refinement. Finalized the React (Vite) dashboard with Tailwind CSS and completed mobile responsiveness testing for Samsung and Techno devices.
 
 ## ⚙️ Setup and Installation
 
