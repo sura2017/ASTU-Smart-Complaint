@@ -81,7 +81,8 @@ app.post('/api/chat', (req, res) => {
 
     // 8. GREETINGS
     else if (input.includes("hello") || input.includes("hi") || input.includes("hey")) {
-        reply = "Hello! I am the ASTU Smart Assistant. You can ask me about 'categories', 'how to write a description', or 'ticket statuses'. How can I help?";
+         // We start by saying Hello back, then give the professional intro
+        reply = "Hello! 👋 Welcome to the ASTU Smart Support Portal. I am your dedicated Virtual Assistant, here to ensure your campus issues are handled efficiently. I can help you understand ticket categories, guide you in writing a detailed description, or check your current status. How can I assist you today?";
     }
 
     // 9. SMART RANDOM FALLBACK
