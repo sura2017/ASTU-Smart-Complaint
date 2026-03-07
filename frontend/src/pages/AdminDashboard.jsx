@@ -7,9 +7,6 @@ import {
   ShieldCheck, User, Image as ImageIcon, Mail, UserCircle, ChevronDown
 } from 'lucide-react';
 
-// LIVE BACKEND URL
-const API_URL = "https://astu-smart-complaint-u7h0.onrender.com";
-
 const AdminDashboard = () => {
   const [complaints, setComplaints] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -19,8 +16,7 @@ const AdminDashboard = () => {
 
   const fetchAllComplaints = async () => {
     try {
-      // Changed to Live API
-      const res = await axios.get(`${API_URL}/api/complaints/all`);
+      const res = await axios.get('http://localhost:5000/api/complaints/all');
       setComplaints(res.data);
     } catch (err) {
       console.error("Error fetching data", err);
@@ -33,8 +29,7 @@ const AdminDashboard = () => {
 
   const handleStatusUpdate = async (id, newStatus) => {
     try {
-      // Changed to Live API
-      await axios.put(`${API_URL}/api/complaints/update/${id}`, { status: newStatus });
+      await axios.put(`http://localhost:5000/api/complaints/update/${id}`, { status: newStatus });
       fetchAllComplaints(); 
     } catch (err) {
       alert("Failed to update status");
@@ -72,7 +67,7 @@ const AdminDashboard = () => {
   return (
     <div className="min-h-screen bg-[#f8fafc] font-sans text-slate-900 pb-10 overflow-x-hidden">
       
-      {/* 1. NAVBAR */}
+      {/* 1. BRILLIANT RESPONSIVE NAVBAR */}
       <nav className="bg-slate-900 text-white p-3 sm:p-5 shadow-2xl sticky top-0 z-50 border-b border-slate-700">
         <div className="max-w-[1600px] mx-auto flex justify-between items-center">
           <div className="flex items-center gap-2">
@@ -83,6 +78,7 @@ const AdminDashboard = () => {
           </div>
           
           <div className="flex items-center gap-2 sm:gap-6">
+            {/* ADMINISTRATOR PROFILE INFO */}
             <div className="hidden sm:flex flex-col items-end border-r border-slate-700 pr-4 mr-1 text-right">
                <div className="flex items-center gap-1.5">
                   <span className="text-[10px] font-black uppercase tracking-widest text-blue-400 font-mono leading-none">Admin Active</span>
@@ -108,6 +104,7 @@ const AdminDashboard = () => {
 
       <div className="max-w-[1600px] mx-auto p-3 sm:p-8 lg:p-12">
         
+        {/* 2. HEADER */}
         <header className="mb-6">
           <h2 className="text-2xl xs:text-3xl sm:text-6xl font-black text-slate-900 tracking-tighter italic uppercase leading-none">
             Administrator
@@ -118,7 +115,7 @@ const AdminDashboard = () => {
           </p>
         </header>
 
-        {/* ANALYTICS */}
+        {/* 3. ANALYTICS GRID */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-6 mb-6 sm:mb-10">
           <StatBox label="Total" val={totalItems} icon={<Database size={16}/>} color="bg-white text-slate-900 border-slate-100" />
           <StatBox label="Rate" val={resolutionRate + "%"} icon={<BarChart3 size={16}/>} color="bg-blue-600 text-white shadow-blue-200" />
@@ -126,7 +123,7 @@ const AdminDashboard = () => {
           <StatBox label="Solved" val={resolvedItems} icon={<CheckCircle size={16}/>} color="bg-emerald-500 text-white shadow-emerald-200" />
         </div>
 
-        {/* WORKLOAD DISTRIBUTION */}
+        {/* --- 4. NEW: DEPARTMENTAL WORKLOAD DISTRIBUTION (From Image) --- */}
         <div className="bg-white p-6 sm:p-10 rounded-[2rem] sm:rounded-[3rem] shadow-xl mb-12 border border-slate-100">
            <h3 className="text-[10px] sm:text-sm font-black uppercase tracking-[0.3em] text-slate-400 mb-8 flex items-center gap-3">
              <LayoutGrid size={18} /> Departmental Workload
@@ -150,7 +147,7 @@ const AdminDashboard = () => {
            </div>
         </div>
 
-        {/* SEARCH & FILTER */}
+        {/* 5. SEARCH & FILTER */}
         <div className="flex flex-col sm:flex-row gap-2 mb-6 sm:mb-10">
             <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300 w-4 h-4" />
@@ -164,7 +161,7 @@ const AdminDashboard = () => {
             <div className="flex items-center bg-white border border-slate-200 rounded-xl px-4 shadow-sm h-[42px] sm:h-auto">
                 <Filter size={14} className="text-slate-400 mr-2" />
                 <select 
-                    className="bg-transparent font-black uppercase text-[10px] tracking-widest cursor-pointer outline-none min-w-[120px]"
+                    className="bg-transparent font-black uppercase text-[9px] tracking-widest cursor-pointer outline-none min-w-[120px]"
                     onChange={(e) => setFilterCategory(e.target.value)}
                 >
                     <option value="All">Categories</option>
@@ -176,6 +173,8 @@ const AdminDashboard = () => {
             </div>
         </div>
 
+        {/* 6. DATA SECTION (Hybrid View) */}
+        
         {/* MOBILE VIEW */}
         <div className="grid grid-cols-1 gap-4 lg:hidden">
           {filteredComplaints.map((c) => (
@@ -196,7 +195,7 @@ const AdminDashboard = () => {
                 }`}>{c.status}</span>
               </div>
 
-              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/50">
+              <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200/50">
                  <div className="flex items-center gap-1 mb-1">
                     <div className="w-1 h-1 bg-blue-500 rounded-full animate-pulse"></div>
                     <p className="text-[8px] font-black text-blue-600 uppercase tracking-widest leading-none">{c.category}</p>
@@ -207,7 +206,7 @@ const AdminDashboard = () => {
 
               <div className="flex items-center gap-2 mt-1">
                  {c.attachment ? (
-                   <a href={`${API_URL}/${c.attachment}`} target="_blank" rel="noreferrer" className="flex-1 bg-slate-900 text-white py-2.5 rounded-xl font-black text-[9px] uppercase flex items-center justify-center gap-1.5 shadow-lg active:scale-95 transition-all">
+                   <a href={`http://localhost:5000/${c.attachment}`} target="_blank" rel="noreferrer" className="flex-1 bg-slate-900 text-white py-2.5 rounded-xl font-black text-[9px] uppercase flex items-center justify-center gap-1.5 shadow-lg active:scale-95 transition-all">
                      See Image <ImageIcon size={12}/>
                    </a>
                  ) : (
@@ -230,7 +229,7 @@ const AdminDashboard = () => {
           ))}
         </div>
 
-        {/* DESKTOP TABLE */}
+        {/* DESKTOP TABLE VIEW */}
         <div className="hidden lg:block bg-white rounded-[3.5rem] shadow-2xl overflow-hidden border border-slate-200">
           <table className="w-full text-left border-collapse">
                 <thead>
@@ -273,7 +272,7 @@ const AdminDashboard = () => {
                         <td className="p-10 align-top text-center text-xs">
                            <div className="flex flex-col items-center gap-4">
                              {c.attachment ? (
-                                <a href={`${API_URL}/${c.attachment}`} target="_blank" rel="noreferrer" className="bg-blue-50 text-blue-600 px-6 py-3 rounded-2xl font-black text-[10px] uppercase hover:bg-blue-600 hover:text-white transition shadow-sm border border-blue-100 flex items-center gap-2 group-hover:scale-105 transition-transform">
+                                <a href={`http://localhost:5000/${c.attachment}`} target="_blank" rel="noreferrer" className="bg-blue-50 text-blue-600 px-6 py-3 rounded-2xl font-black text-[10px] uppercase hover:bg-blue-600 hover:text-white transition shadow-sm border border-blue-100 flex items-center gap-2 group-hover:scale-105 transition-transform">
                                   See Image <ImageIcon size={14} />
                                 </a>
                              ) : (
