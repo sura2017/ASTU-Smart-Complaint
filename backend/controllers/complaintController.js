@@ -85,49 +85,42 @@ exports.getAllComplaints = async (req, res) => {
 };
 
 // 4. Update Complaint Status
+
+
 exports.updateComplaintStatus = async (req, res) => {
     try {
         const { id } = req.params;
         const { status } = req.body;
 
+        // Populate 'student' is CRITICAL to get the email address
         const updatedComplaint = await Complaint.findByIdAndUpdate(id, { status }, { new: true })
             .populate('student', 'name email');
 
-        if (!updatedComplaint) {
-            return res.status(404).json({ message: "Complaint not found" });
-        }
+        if (!updatedComplaint) return res.status(404).json({ message: "Ticket not found" });
 
-        await Notification.create({
-            recipient: updatedComplaint.student._id,
-            message: `Ticket Update: Your issue "${updatedComplaint.title}" is now ${status.toUpperCase()}.`,
-            complaintId: updatedComplaint._id
-        });
-
-        const trackingID = updatedComplaint._id.toString().slice(-8).toUpperCase();
+        // Email Content
         const emailHtml = `
-            <div style="font-family: sans-serif; max-width: 600px; border: 1px solid #e2e8f0; padding: 30px; border-radius: 20px;">
-                <h1 style="color: #1e3a8a; font-size: 22px;">ASTU Maintenance Update</h1>
+            <div style="font-family: sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
+                <h2 style="color: #1e3a8a;">ASTU Smart Complaint Update</h2>
                 <p>Hello <b>${updatedComplaint.student.name}</b>,</p>
-                <p>The status of your ticket <b>#${trackingID}</b> has been updated.</p>
-                <div style="background-color: #f1f5f9; padding: 20px; border-radius: 12px; margin: 20px 0;">
-                    <p style="margin: 0; color: #64748b; font-size: 11px; font-weight: bold; text-transform: uppercase;">Current Status</p>
-                    <p style="margin: 5px 0 0 0; font-size: 18px; font-weight: bold; color: ${status === 'Resolved' ? '#059669' : '#2563eb'};">
-                        ${status.toUpperCase()}
-                    </p>
-                </div>
-                <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
-                <p style="font-size: 10px; color: #94a3b8; text-align: center;">This is an automated message from the ASTU Smart Complaint System.</p>
+                <p>Your ticket <b>#${updatedComplaint._id.toString().slice(-8).toUpperCase()}</b> has been updated.</p>
+                <p>Status: <span style="color: #059669; font-weight: bold;">${status.toUpperCase()}</span></p>
+                <p>Please log in to the portal for more details.</p>
             </div>
         `;
 
-        sendEmail(updatedComplaint.student.email, `Update on Ticket #${trackingID}`, `Status: ${status}`, emailHtml).catch(e => console.log("Email error ignored"));
+        // Trigger the live email
+        if (updatedComplaint.student.email) {
+            await sendEmail(updatedComplaint.student.email, "ASTU Support Update", `Your ticket is now ${status}`, emailHtml);
+        }
 
-        res.json({ message: "Status updated", updatedComplaint });
+        res.json({ message: "Status updated and Email sent", updatedComplaint });
+
     } catch (err) {
+        console.error("Email/Status Update Error:", err.message);
         res.status(500).json({ error: err.message });
     }
 };
-
 // 5. Get Notifications
 exports.getNotifications = async (req, res) => {
     try {
