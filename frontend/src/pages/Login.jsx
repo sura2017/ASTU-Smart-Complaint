@@ -5,6 +5,9 @@ import { GoogleLogin } from '@react-oauth/google';
 import { jwtDecode } from "jwt-decode";
 import { Mail, Lock, Github, ArrowRight, ShieldCheck } from 'lucide-react';
 
+// LIVE BACKEND URL
+const API_URL = "https://astu-smart-complaint-u7h0.onrender.com";
+
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -20,7 +23,8 @@ const Login = () => {
         hasCalledGitHub.current = true;
         setLoading(true);
         try {
-          const res = await axios.post('http://localhost:5000/api/auth/github-login', { code });
+          // Changed to Live API
+          const res = await axios.post(`${API_URL}/api/auth/github-login`, { code });
           localStorage.setItem('token', res.data.token);
           localStorage.setItem('user', JSON.stringify(res.data.user));
           window.history.replaceState({}, document.title, "/");
@@ -40,7 +44,8 @@ const Login = () => {
     setLoading(true);
     localStorage.clear(); 
     try {
-      const res = await axios.post('http://localhost:5000/api/auth/login', { email, password });
+      // Changed to Live API
+      const res = await axios.post(`${API_URL}/api/auth/login`, { email, password });
       localStorage.setItem('token', res.data.token);
       localStorage.setItem('user', JSON.stringify(res.data.user));
       if (res.data.user.role === 'Staff') navigate('/admin');
@@ -56,7 +61,8 @@ const Login = () => {
     localStorage.clear(); 
     const details = jwtDecode(credentialResponse.credential);
     try {
-      const res = await axios.post('http://localhost:5000/api/auth/google-login', {
+      // Changed to Live API
+      const res = await axios.post(`${API_URL}/api/auth/google-login`, {
         name: details.name,
         email: details.email,
         googleId: details.sub
@@ -72,14 +78,14 @@ const Login = () => {
   const handleGitHubLogin = () => {
     localStorage.clear();
     const clientId = 'Ov23ctjRMz8lcuGM4era';
-    const redirectUri = 'http://localhost:5173';
+    // NOTE: When you deploy the frontend, change this redirectUri to your Vercel link!
+    const redirectUri = window.location.origin; 
     window.location.assign(`https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=user:email`);
   };
 
   return (
     <div className="min-h-screen bg-[#0f172a] flex flex-col items-center justify-center p-2 sm:p-4 font-sans relative overflow-hidden">
       
-      {/* High-End Background Effect */}
       <div className="absolute top-0 left-0 w-full h-full -z-10">
         <div className="absolute top-[-5%] left-[-5%] w-[30%] h-[30%] bg-blue-600/10 blur-[100px] rounded-full"></div>
         <div className="absolute bottom-[-5%] right-[-5%] w-[30%] h-[30%] bg-indigo-600/10 blur-[100px] rounded-full"></div>
@@ -88,19 +94,17 @@ const Login = () => {
       <div className="w-full max-w-[380px] sm:max-w-md z-10">
         <div className="bg-white rounded-[2rem] shadow-2xl overflow-hidden border border-white/20">
           
-          {/* 1. COMPRESSED HEADER */}
           <div className="bg-gradient-to-r from-blue-600 to-indigo-700 py-4 px-6 text-center text-white">
              <div className="flex items-center justify-center gap-3">
                 <div className="bg-white/20 w-10 h-10 rounded-xl flex items-center justify-center text-lg font-black backdrop-blur-sm border border-white/30">
                   ASTU
                 </div>
-                <h2 className="text-xl font-black tracking-tight">Student Portal</h2>
+                <h2 className="text-xl font-black tracking-tight uppercase">Student Portal</h2>
              </div>
-             <p className="text-blue-100/60 text-[10px] font-bold uppercase tracking-widest mt-1">Smart Complaint System</p>
+             <p className="text-blue-100/60 text-[10px] font-bold uppercase tracking-widest mt-1 italic">Smart Complaint System</p>
           </div>
 
           <div className="p-6 sm:p-8 space-y-4">
-            {/* 2. COMPACT FORM */}
             <form onSubmit={handleLogin} className="space-y-3">
               <div className="relative">
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -125,21 +129,19 @@ const Login = () => {
               <button 
                 disabled={loading}
                 type="submit" 
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-3.5 rounded-xl shadow-lg transition-all active:scale-95 flex justify-center items-center gap-2 text-xs tracking-widest"
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-3.5 rounded-xl shadow-lg transition-all active:scale-95 flex justify-center items-center gap-2 text-xs tracking-widest disabled:opacity-50"
               >
                 {loading ? "VERIFYING..." : "SIGN IN TO PORTAL"}
                 <ArrowRight className="w-3 h-3" />
               </button>
             </form>
 
-            {/* 3. TIGHTER DIVIDER */}
             <div className="relative flex py-2 items-center">
               <div className="flex-grow border-t border-slate-100"></div>
               <span className="flex-shrink mx-3 text-slate-300 text-[9px] font-black uppercase tracking-widest">Unified Login</span>
               <div className="flex-grow border-t border-slate-100"></div>
             </div>
 
-            {/* 4. COMPACT SSO BUTTONS */}
             <div className="flex flex-col gap-2.5">
               <div className="flex justify-center transform scale-95 origin-center">
                 <GoogleLogin 
@@ -168,7 +170,6 @@ const Login = () => {
             </div>
           </div>
 
-          {/* 5. MINIMAL FOOTER */}
           <div className="bg-slate-50 py-3 text-center border-t border-slate-100 flex items-center justify-center gap-2">
              <ShieldCheck className="w-3 h-3 text-emerald-500" />
              <p className="text-slate-400 text-[8px] font-black uppercase tracking-[0.2em]">Authorized ASTU SSL Secure</p>

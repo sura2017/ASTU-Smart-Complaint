@@ -2,6 +2,7 @@ import { useState } from 'react';
 import axios from 'axios';
 import { useNavigate, Link } from 'react-router-dom';
 import { User, Mail, Lock, ArrowRight, ShieldCheck } from 'lucide-react';
+const API_URL = "https://astu-smart-complaint-u7h0.onrender.com";
 
 const Register = () => {
   const [formData, setFormData] = useState({ name: '', email: '', password: '', role: 'Student' });
@@ -40,7 +41,7 @@ const Register = () => {
 
     setLoading(true);
     try {
-      const res = await axios.post('http://localhost:5000/api/auth/register', formData);
+      const res = await axios.post(`${API_URL}/api/auth/register`, formData);
       alert("Registration Successful! Your account is secured with a complex 8-32 character password.");
       navigate('/');
     } catch (err) {

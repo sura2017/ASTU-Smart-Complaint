@@ -3,13 +3,15 @@ import axios from 'axios';
 import { useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft, UploadCloud, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 
+// LIVE BACKEND URL
+const API_URL = "https://astu-smart-complaint-u7h0.onrender.com";
+
 const SubmitComplaint = () => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('Dormitory');
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [dragActive, setDragActive] = useState(false);
   
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('user'));
@@ -46,7 +48,9 @@ const SubmitComplaint = () => {
     formData.append('attachment', file);
 
     try {
-      await axios.post('http://localhost:5000/api/complaints/submit', formData);
+      // CHANGED: Now using the LIVE API URL instead of localhost
+      await axios.post(`${API_URL}/api/complaints/submit`, formData);
+      
       alert("Success! Your ticket has been logged and the department notified.");
       navigate('/dashboard');
     } catch (err) {
@@ -75,7 +79,7 @@ const SubmitComplaint = () => {
         <form onSubmit={handleSubmit} className="bg-white p-6 sm:p-10 rounded-[2.5rem] shadow-2xl border border-slate-100 relative overflow-hidden">
             {/* Form Header */}
             <div className="mb-8">
-                <h2 className="text-4xl font-black text-slate-900 tracking-tighter mb-2">Create Ticket</h2>
+                <h2 className="text-4xl font-black text-slate-900 tracking-tighter mb-2 italic uppercase">Create Ticket</h2>
                 <div className="flex items-center gap-2 bg-blue-50 px-3 py-1.5 rounded-xl w-fit">
                     <CheckCircle2 className="w-4 h-4 text-blue-600" />
                     <span className="text-xs font-black text-blue-700 uppercase tracking-tight">Logging as {user?.name}</span>

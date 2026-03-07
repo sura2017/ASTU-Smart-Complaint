@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import axios from 'axios';
 import { Link, useNavigate } from 'react-router-dom';
+const API_URL = "https://astu-smart-complaint-u7h0.onrender.com";
 
 const Dashboard = () => {
   const [complaints, setComplaints] = useState([]);
@@ -39,10 +40,10 @@ const Dashboard = () => {
     }
     const fetchData = async () => {
       try {
-        const compRes = await axios.get(`http://localhost:5000/api/complaints/student/${user.id}`);
+        const compRes = await axios.get(`${API_URL}/api/complaints/student/${user.id}`);
         setComplaints(compRes.data);
         
-        const notifRes = await axios.get(`http://localhost:5000/api/complaints/notifications/${user.id}`);
+        const notifRes = await axios.get(`${API_URL}/api/complaints/notifications/${user.id}`);
         setNotifications(notifRes.data);
       } catch (err) {
         console.error("Error fetching data", err);
@@ -60,7 +61,7 @@ const Dashboard = () => {
     setIsNotifOpen(!isNotifOpen);
     if (!isNotifOpen && unreadCount > 0) {
       try {
-        await axios.put(`http://localhost:5000/api/complaints/notifications/read/${user.id}`);
+        await axios.put(`${API_URL}/api/complaints/notifications/read/${user.id}`);
         // Update local state to clear the red dot
         setNotifications(notifications.map(n => ({ ...n, isRead: true })));
       } catch (err) {
@@ -80,7 +81,7 @@ const Dashboard = () => {
     setChatMessage("");
     setIsTyping(true);
     try {
-      const res = await axios.post('http://localhost:5000/api/chat', { message: currentInput });
+      const res = await axios.post(`${API_URL}/api/chat`, { message: currentInput });
       setTimeout(() => {
         const botMsg = { sender: 'bot', text: res.data.reply };
         setMessages(prev => [...prev, botMsg]);
@@ -167,7 +168,7 @@ const Dashboard = () => {
               <div key={c._id} className="bg-white border border-slate-100 rounded-[2rem] shadow-sm overflow-hidden hover:shadow-2xl transition-all duration-500 group flex flex-col h-full">
                 <div className="relative aspect-video w-full overflow-hidden bg-slate-200">
                   {c.attachment ? (
-                    <img src={`http://localhost:5000/${c.attachment}`} alt="issue" className="w-full h-full object-cover object-center group-hover:scale-110 transition-transform duration-1000" />
+                    <img src={`${API_URL}/${c.attachment}`} alt="issue" className="w-full h-full object-cover object-center group-hover:scale-110 transition-transform duration-1000" />
                   ) : (
                     <div className="flex flex-col items-center justify-center h-full text-slate-400 bg-slate-50 italic">
                       <span className="text-2xl opacity-30">📷</span>
