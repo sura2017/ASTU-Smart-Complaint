@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const path = require('path');
+const fs = require('fs'); // Core Node.js module to handle folders
 
 // Import Route Files
 const authRoutes = require('./routes/authRoutes');
@@ -12,6 +13,14 @@ const complaintRoutes = require('./routes/complaintRoutes');
 dotenv.config();
 
 const app = express();
+
+// --- 0. AUTO-CREATE UPLOADS FOLDER (CRITICAL FIX FOR RENDER ERROR) ---
+// This ensures that even if Git ignored the folder, it is created on Render
+const uploadDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+    console.log("📁 Folder Check: 'uploads' directory created on server.");
+}
 
 // 1. GLOBAL MIDDLEWARE
 // Increased limits to allow image uploads (10MB)
@@ -26,10 +35,9 @@ const allowedOrigins = [
 
 app.use(cors({
     origin: function (origin, callback) {
-        // Allow requests with no origin (like mobile apps or curl)
         if (!origin) return callback(null, true);
         if (allowedOrigins.indexOf(origin) === -1) {
-            return callback(new Error('CORS Policy blocked this origin'), false);
+            return callback(new Error('CORS Policy blocked this request'), false);
         }
         return callback(null, true);
     },
@@ -39,13 +47,14 @@ app.use(cors({
 }));
 
 // 3. STATIC FILES
+// This makes uploaded images viewable at your-backend-url/uploads/filename.jpg
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// 4. HEALTH CHECK / WELCOME ROUTE (To avoid "Cannot GET /")
+// 4. HEALTH CHECK / WELCOME ROUTE
 app.get('/', (req, res) => {
     res.status(200).json({ 
         status: "Online", 
-        message: "ASTU Smart Complaint API is running",
+        message: "ASTU Smart Complaint API is running flawlessly",
         environment: "Production"
     });
 });
@@ -66,9 +75,9 @@ app.post('/api/chat', (req, res) => {
     } else if (input.includes("status")) {
         reply = "Check your Dashboard: 'Open' is received, 'In Progress' is being fixed, 'Resolved' is finished.";
     } else if (input.includes("hello") || input.includes("hi")) {
-        reply = "Hello! 👋 I am your ASTU Assistant. How can I help you today?";
+        reply = "Hello! 👋 I am your ASTU Assistant. How can I assist your campus experience today?";
     } else {
-        reply = "I suggest submitting a formal ticket with a photo so our staff can investigate immediately.";
+        reply = "I understand. Please submit a formal ticket with a photo so our staff can investigate immediately.";
     }
     res.json({ reply });
 });
@@ -76,9 +85,10 @@ app.post('/api/chat', (req, res) => {
 // 7. DATABASE CONNECTION
 mongoose.connect(process.env.MONGO_URI)
     .then(() => console.log("✅ MongoDB Atlas Connected Successfully!"))
-    .catch(err => console.error("❌ DB Error:", err.message));
+    .catch(err => console.error("❌ DB Connection Error:", err.message));
 
 // 8. START SERVER
+// Use process.env.PORT because Render assigns a random port (like 10000)
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Production Server running on port ${PORT}`);
