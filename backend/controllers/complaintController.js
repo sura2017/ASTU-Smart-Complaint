@@ -1,23 +1,22 @@
 const Complaint = require('../models/Complaint');
 const Notification = require('../models/Notification');
-const sendEmail = require('../utils/sendEmail'); // Import our new email utility
+const sendEmail = require('../utils/sendEmail');
 
-// 1. Submit a new complaint (Student)
+// 1. Submit a new complaint (Student) - UPDATED FOR CLOUDINARY
 exports.submitComplaint = async (req, res) => {
     try {
         const { studentId, title, description, category } = req.body;
         
-        let attachmentPath = null;
-        if (req.file) {
-            attachmentPath = req.file.path.replace(/\\/g, "/");
-        }
+        // When using Cloudinary, req.file.path is the FULL permanent URL
+        // Example: https://res.cloudinary.com/dilhesmdd/image/upload/...
+        const attachmentUrl = req.file ? req.file.path : null;
 
         const newComplaint = new Complaint({
             student: studentId,
             title,
             description,
             category,
-            attachment: attachmentPath
+            attachment: attachmentUrl // Saving the permanent cloud link
         });
 
         await newComplaint.save();
@@ -29,8 +28,7 @@ exports.submitComplaint = async (req, res) => {
             complaintId: newComplaint._id
         });
 
-        // --- 2. Send Confirmation Email (Professional Touch) ---
-        // We find the user to get their name and email
+        // --- 2. Send Confirmation Email ---
         const User = require('../models/User');
         const user = await User.findById(studentId);
         
@@ -51,6 +49,7 @@ exports.submitComplaint = async (req, res) => {
 
         res.status(201).json({ message: "Complaint submitted successfully!", complaint: newComplaint });
     } catch (err) {
+        console.error("Submission Error:", err);
         res.status(500).json({ error: err.message });
     }
 };
@@ -84,7 +83,6 @@ exports.updateComplaintStatus = async (req, res) => {
         const { id } = req.params;
         const { status } = req.body;
 
-        // We populate 'student' so we can get the student's email address
         const updatedComplaint = await Complaint.findByIdAndUpdate(id, { status }, { new: true })
             .populate('student', 'name email');
 
@@ -92,64 +90,54 @@ exports.updateComplaintStatus = async (req, res) => {
             return res.status(404).json({ message: "Complaint not found" });
         }
 
-        // --- 1. Create In-App Notification (For the Bell) ---
         await Notification.create({
             recipient: updatedComplaint.student._id,
             message: `Ticket Update: Your issue "${updatedComplaint.title}" is now ${status.toUpperCase()}.`,
             complaintId: updatedComplaint._id
         });
 
-        // --- 2. Send Real Email Notification ---
         const trackingID = updatedComplaint._id.toString().slice(-8).toUpperCase();
         const emailHtml = `
             <div style="font-family: sans-serif; max-width: 600px; border: 1px solid #e2e8f0; padding: 30px; border-radius: 20px;">
                 <h1 style="color: #1e3a8a; font-size: 22px;">ASTU Maintenance Update</h1>
                 <p>Hello <b>${updatedComplaint.student.name}</b>,</p>
                 <p>The status of your ticket <b>#${trackingID}</b> has been updated.</p>
-                
                 <div style="background-color: #f1f5f9; padding: 20px; border-radius: 12px; margin: 20px 0;">
                     <p style="margin: 0; color: #64748b; font-size: 11px; font-weight: bold; text-transform: uppercase;">Current Status</p>
                     <p style="margin: 5px 0 0 0; font-size: 18px; font-weight: bold; color: ${status === 'Resolved' ? '#059669' : '#2563eb'};">
                         ${status.toUpperCase()}
                     </p>
                 </div>
-
                 <p>Please log in to the portal to track the full resolution process.</p>
                 <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
                 <p style="font-size: 10px; color: #94a3b8; text-align: center;">This is an automated message from the ASTU Smart Complaint System.</p>
             </div>
         `;
 
-        await sendEmail(
-            updatedComplaint.student.email, 
-            `Update on Ticket #${trackingID}`, 
-            emailHtml
-        );
+        await sendEmail(updatedComplaint.student.email, `Update on Ticket #${trackingID}`, emailHtml);
 
-        res.json({ message: "Status updated and student notified via Bell and Email", updatedComplaint });
+        res.json({ message: "Status updated and student notified", updatedComplaint });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 };
 
-// 5. Get Notifications for a user (For the Bell Icon)
+// 5. Get Notifications
 exports.getNotifications = async (req, res) => {
     try {
         const { userId } = req.params;
-        const notifications = await Notification.find({ recipient: userId })
-            .sort({ createdAt: -1 })
-            .limit(10);
+        const notifications = await Notification.find({ recipient: userId }).sort({ createdAt: -1 }).limit(10);
         res.json(notifications);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 };
 
-// 6. Mark Notification as Read
+// 6. Mark Read
 exports.markAsRead = async (req, res) => {
     try {
         await Notification.updateMany({ recipient: req.params.userId }, { isRead: true });
-        res.json({ message: "All notifications marked as read" });
+        res.json({ message: "Read" });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

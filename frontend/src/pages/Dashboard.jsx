@@ -72,18 +72,16 @@ const Dashboard = () => {
 
   // --- HELPER FUNCTION TO FIX IMAGE PATHS ---
   const getImageUrl = (path) => {
-    if (!path) return null;
-    // If the path already contains http, use it directly
-    if (path.startsWith('http')) return path;
-    
-    // Clean the path: Multer sometimes saves as 'uploads\file.jpg' on Windows
-    // We must ensure it uses forward slashes '/' for the web
-    const cleanPath = path.replace(/\\/g, '/');
-    
-    // If the path starts with 'uploads/', we append it to the API_URL
-    // Result: https://backend.com/uploads/123.jpg
-    return `${API_URL}/${cleanPath}`;
-  };
+  if (!path) return null;
+  
+  // If the path is already a full internet URL (Cloudinary), return it exactly
+  if (path.startsWith('http')) {
+      return path;
+  }
+  
+  // Fallback for old local images still in the database
+  return `${API_URL}/${path.replace(/\\/g, '/')}`;
+};
 
   const handleAiChat = async (e) => {
     e.preventDefault();

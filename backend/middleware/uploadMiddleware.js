@@ -1,28 +1,24 @@
+const cloudinary = require('cloudinary').v2;
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
 
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        // Use an absolute path to the uploads folder
-        const uploadPath = path.join(__dirname, '..', 'uploads');
-        
-        // Final check: if folder somehow doesn't exist, create it
-        if (!fs.existsSync(uploadPath)) {
-            fs.mkdirSync(uploadPath, { recursive: true });
-        }
-        
-        cb(null, uploadPath);
-    },
-    filename: (req, file, cb) => {
-        // Safe filename with timestamp
-        cb(null, Date.now() + path.extname(file.originalname));
-    }
+// 1. Configure Cloudinary with your keys
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
-const upload = multer({ 
-    storage: storage,
-    limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
+// 2. Setup Cloudinary Storage Logic
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: 'astu_complaints', // Images will be saved in this folder in your Cloudinary
+    allowed_formats: ['jpg', 'png', 'jpeg'],
+    transformation: [{ width: 800, height: 600, crop: 'limit' }] // Automatically resizes for speed
+  },
 });
+
+const upload = multer({ storage: storage });
 
 module.exports = upload;

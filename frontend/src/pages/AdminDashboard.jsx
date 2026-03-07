@@ -7,6 +7,9 @@ import {
   ShieldCheck, User, Image as ImageIcon, Mail, UserCircle, ChevronDown
 } from 'lucide-react';
 
+// LIVE BACKEND URL
+const API_URL = "https://astu-smart-complaint-u7h0.onrender.com";
+
 const AdminDashboard = () => {
   const [complaints, setComplaints] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -14,9 +17,22 @@ const AdminDashboard = () => {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('user'));
 
+  // --- HELPER FUNCTION: FIX IMAGE PATHS FOR LIVE SERVER ---
+  const getImageUrl = (path) => {
+    if (!path) return null;
+    // 1. If it's already a full internet link (Cloudinary), use it directly
+    if (path.startsWith('http')) return path;
+    
+    // 2. Clean the path: Replace Windows backslashes '\' with web forward slashes '/'
+    const cleanPath = path.replace(/\\/g, '/');
+    
+    // 3. Construct the full URL for the live Render server
+    return `${API_URL}/${cleanPath}`;
+  };
+
   const fetchAllComplaints = async () => {
     try {
-      const res = await axios.get('http://localhost:5000/api/complaints/all');
+      const res = await axios.get(`${API_URL}/api/complaints/all`);
       setComplaints(res.data);
     } catch (err) {
       console.error("Error fetching data", err);
@@ -24,12 +40,16 @@ const AdminDashboard = () => {
   };
 
   useEffect(() => {
+    if (!user || user.role !== 'Staff') {
+      navigate('/'); 
+      return;
+    }
     fetchAllComplaints();
   }, []);
 
   const handleStatusUpdate = async (id, newStatus) => {
     try {
-      await axios.put(`http://localhost:5000/api/complaints/update/${id}`, { status: newStatus });
+      await axios.put(`${API_URL}/api/complaints/update/${id}`, { status: newStatus });
       fetchAllComplaints(); 
     } catch (err) {
       alert("Failed to update status");
@@ -49,16 +69,16 @@ const AdminDashboard = () => {
 
   // --- SEARCH & FILTER LOGIC ---
   const filteredComplaints = complaints.filter(c => {
-    const studentName = c.student?.name || "";
-    const studentEmail = c.student?.email || "";
-    const title = c.title || "";
-    const id = c._id || "";
+    const sName = c.student?.name || "";
+    const sEmail = c.student?.email || "";
+    const sTitle = c.title || "";
+    const sId = c._id || "";
 
     const matchesSearch = 
-      title.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      studentEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      id.toLowerCase().includes(searchTerm.toLowerCase());
+      sTitle.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      sName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      sEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      sId.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesCategory = filterCategory === "All" || c.category === filterCategory;
     return matchesSearch && matchesCategory;
@@ -106,12 +126,12 @@ const AdminDashboard = () => {
         
         {/* 2. HEADER */}
         <header className="mb-6">
-          <h2 className="text-2xl xs:text-3xl sm:text-6xl font-black text-slate-900 tracking-tighter italic uppercase leading-none">
+          <h2 className="text-2xl xs:text-3xl sm:text-6xl font-black text-slate-900 tracking-tighter mb-1 italic uppercase leading-none">
             Administrator
           </h2>
           <p className="text-slate-400 text-[9px] sm:text-lg font-black flex items-center gap-2 uppercase tracking-[0.2em] mt-2 leading-none">
              <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
-             Centralized Oversight: {totalItems} Active Tickets
+             Oversight: {totalItems} Active Tickets
           </p>
         </header>
 
@@ -123,9 +143,9 @@ const AdminDashboard = () => {
           <StatBox label="Solved" val={resolvedItems} icon={<CheckCircle size={16}/>} color="bg-emerald-500 text-white shadow-emerald-200" />
         </div>
 
-        {/* --- 4. NEW: DEPARTMENTAL WORKLOAD DISTRIBUTION (From Image) --- */}
+        {/* 4. DEPARTMENTAL WORKLOAD */}
         <div className="bg-white p-6 sm:p-10 rounded-[2rem] sm:rounded-[3rem] shadow-xl mb-12 border border-slate-100">
-           <h3 className="text-[10px] sm:text-sm font-black uppercase tracking-[0.3em] text-slate-400 mb-8 flex items-center gap-3">
+           <h3 className="text-[10px] sm:text-sm font-black uppercase tracking-[0.3em] text-slate-400 mb-8 flex items-center gap-3 italic">
              <LayoutGrid size={18} /> Departmental Workload
            </h3>
            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 sm:gap-10">
@@ -173,9 +193,7 @@ const AdminDashboard = () => {
             </div>
         </div>
 
-        {/* 6. DATA SECTION (Hybrid View) */}
-        
-        {/* MOBILE VIEW */}
+        {/* 6. MOBILE CARDS VIEW */}
         <div className="grid grid-cols-1 gap-4 lg:hidden">
           {filteredComplaints.map((c) => (
             <div key={c._id} className="bg-white p-4 rounded-[1.8rem] shadow-xl border border-slate-100 flex flex-col gap-3">
@@ -195,7 +213,7 @@ const AdminDashboard = () => {
                 }`}>{c.status}</span>
               </div>
 
-              <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200/50">
+              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/50">
                  <div className="flex items-center gap-1 mb-1">
                     <div className="w-1 h-1 bg-blue-500 rounded-full animate-pulse"></div>
                     <p className="text-[8px] font-black text-blue-600 uppercase tracking-widest leading-none">{c.category}</p>
@@ -205,8 +223,9 @@ const AdminDashboard = () => {
               </div>
 
               <div className="flex items-center gap-2 mt-1">
+                 {/* --- MOBILE IMAGE LINK FIXED --- */}
                  {c.attachment ? (
-                   <a href={`http://localhost:5000/${c.attachment}`} target="_blank" rel="noreferrer" className="flex-1 bg-slate-900 text-white py-2.5 rounded-xl font-black text-[9px] uppercase flex items-center justify-center gap-1.5 shadow-lg active:scale-95 transition-all">
+                   <a href={getImageUrl(c.attachment)} target="_blank" rel="noreferrer" className="flex-1 bg-slate-900 text-white py-2.5 rounded-xl font-black text-[9px] uppercase flex items-center justify-center gap-1.5 shadow-lg active:scale-95 transition-all">
                      See Image <ImageIcon size={12}/>
                    </a>
                  ) : (
@@ -229,7 +248,7 @@ const AdminDashboard = () => {
           ))}
         </div>
 
-        {/* DESKTOP TABLE VIEW */}
+        {/* 7. DESKTOP TABLE VIEW */}
         <div className="hidden lg:block bg-white rounded-[3.5rem] shadow-2xl overflow-hidden border border-slate-200">
           <table className="w-full text-left border-collapse">
                 <thead>
@@ -248,6 +267,7 @@ const AdminDashboard = () => {
                            <div className="flex flex-col gap-1.5">
                               <span className="font-black text-slate-900 text-xl tracking-tight leading-none group-hover:text-blue-600 transition-colors">{c.student?.name || "Anonymous"}</span>
                               <div className="flex items-center gap-2 text-slate-400">
+                                 {/* --- STUDENT EMAIL LOG ICON ADDED --- */}
                                  <Mail size={14} className="text-blue-500" />
                                  <span className="text-sm font-bold tracking-tight lowercase">{c.student?.email}</span>
                               </div>
@@ -271,8 +291,9 @@ const AdminDashboard = () => {
 
                         <td className="p-10 align-top text-center text-xs">
                            <div className="flex flex-col items-center gap-4">
+                             {/* --- DESKTOP IMAGE LINK FIXED --- */}
                              {c.attachment ? (
-                                <a href={`http://localhost:5000/${c.attachment}`} target="_blank" rel="noreferrer" className="bg-blue-50 text-blue-600 px-6 py-3 rounded-2xl font-black text-[10px] uppercase hover:bg-blue-600 hover:text-white transition shadow-sm border border-blue-100 flex items-center gap-2 group-hover:scale-105 transition-transform">
+                                <a href={getImageUrl(c.attachment)} target="_blank" rel="noreferrer" className="bg-blue-50 text-blue-600 px-6 py-3 rounded-2xl font-black text-[10px] uppercase hover:bg-blue-600 hover:text-white transition shadow-sm border border-blue-100 flex items-center gap-2 group-hover:scale-105 transition-transform">
                                   See Image <ImageIcon size={14} />
                                 </a>
                              ) : (
