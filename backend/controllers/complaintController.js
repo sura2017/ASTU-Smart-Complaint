@@ -1,14 +1,19 @@
 const Complaint = require('../models/Complaint');
 const Notification = require('../models/Notification');
+const User = require('../models/User'); // Moved to top
 const sendEmail = require('../utils/sendEmail');
 
-// 1. Submit a new complaint (Student) - UPDATED FOR CLOUDINARY
+// 1. Submit a new complaint (Student) - OPTIMIZED FOR CLOUDINARY
 exports.submitComplaint = async (req, res) => {
     try {
         const { studentId, title, description, category } = req.body;
         
-        // When using Cloudinary, req.file.path is the FULL permanent URL
-        // Example: https://res.cloudinary.com/dilhesmdd/image/upload/...
+        // Safety Check: Ensure studentId is sent from Frontend
+        if (!studentId) {
+            return res.status(400).json({ message: "Student ID is required. Please re-login." });
+        }
+
+        // With Cloudinary, req.file.path is the FULL permanent URL
         const attachmentUrl = req.file ? req.file.path : null;
 
         const newComplaint = new Complaint({
@@ -16,7 +21,7 @@ exports.submitComplaint = async (req, res) => {
             title,
             description,
             category,
-            attachment: attachmentUrl // Saving the permanent cloud link
+            attachment: attachmentUrl 
         });
 
         await newComplaint.save();
@@ -29,32 +34,34 @@ exports.submitComplaint = async (req, res) => {
         });
 
         // --- 2. Send Confirmation Email ---
-        const User = require('../models/User');
+        // We find the user to ensure they exist before sending email
         const user = await User.findById(studentId);
         
-        const emailHtml = `
-            <div style="font-family: sans-serif; max-width: 600px; border: 1px solid #eee; padding: 20px; border-radius: 15px;">
-                <h2 style="color: #1e3a8a;">ASTU Smart Complaint System</h2>
-                <p>Hello <b>${user.name}</b>,</p>
-                <p>Your ticket has been successfully submitted and is now <b>OPEN</b>.</p>
-                <div style="background: #f8fafc; padding: 15px; border-radius: 10px; margin: 15px 0;">
-                    <p><b>Ticket ID:</b> #${newComplaint._id.toString().slice(-8).toUpperCase()}</p>
-                    <p><b>Subject:</b> ${title}</p>
+        if (user) {
+            const emailHtml = `
+                <div style="font-family: sans-serif; max-width: 600px; border: 1px solid #eee; padding: 20px; border-radius: 15px;">
+                    <h2 style="color: #1e3a8a;">ASTU Smart Complaint System</h2>
+                    <p>Hello <b>${user.name}</b>,</p>
+                    <p>Your ticket has been successfully submitted and is now <b>OPEN</b>.</p>
+                    <div style="background: #f8fafc; padding: 15px; border-radius: 10px; margin: 15px 0;">
+                        <p><b>Ticket ID:</b> #${newComplaint._id.toString().slice(-8).toUpperCase()}</p>
+                        <p><b>Subject:</b> ${title}</p>
+                    </div>
+                    <p>Our maintenance team will review your issue shortly.</p>
                 </div>
-                <p>Our maintenance team will review your issue shortly.</p>
-            </div>
-        `;
-        
-        await sendEmail(user.email, "Ticket Received: " + title, emailHtml);
+            `;
+            // Non-blocking email send (won't crash the response if email fails)
+            sendEmail(user.email, "Ticket Received: " + title, "Your ticket is received.", emailHtml).catch(e => console.log("Email error ignored"));
+        }
 
         res.status(201).json({ message: "Complaint submitted successfully!", complaint: newComplaint });
     } catch (err) {
-        console.error("Submission Error:", err);
-        res.status(500).json({ error: err.message });
+        console.error("SUBMISSION CRASH DETAILS:", err);
+        res.status(500).json({ message: "Server Error", error: err.message });
     }
 };
 
-// 2. Get complaints for a specific student (Dashboard)
+// 2. Get complaints for a specific student
 exports.getStudentComplaints = async (req, res) => {
     try {
         const { studentId } = req.params;
@@ -65,7 +72,7 @@ exports.getStudentComplaints = async (req, res) => {
     }
 };
 
-// 3. Get ALL complaints (For Admin/Staff Panel)
+// 3. Get ALL complaints (Admin)
 exports.getAllComplaints = async (req, res) => {
     try {
         const complaints = await Complaint.find()
@@ -77,7 +84,7 @@ exports.getAllComplaints = async (req, res) => {
     }
 };
 
-// 4. Update Complaint Status + IN-APP NOTIF + EMAIL NOTIF
+// 4. Update Complaint Status
 exports.updateComplaintStatus = async (req, res) => {
     try {
         const { id } = req.params;
@@ -108,15 +115,14 @@ exports.updateComplaintStatus = async (req, res) => {
                         ${status.toUpperCase()}
                     </p>
                 </div>
-                <p>Please log in to the portal to track the full resolution process.</p>
                 <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
                 <p style="font-size: 10px; color: #94a3b8; text-align: center;">This is an automated message from the ASTU Smart Complaint System.</p>
             </div>
         `;
 
-        await sendEmail(updatedComplaint.student.email, `Update on Ticket #${trackingID}`, emailHtml);
+        sendEmail(updatedComplaint.student.email, `Update on Ticket #${trackingID}`, `Status: ${status}`, emailHtml).catch(e => console.log("Email error ignored"));
 
-        res.json({ message: "Status updated and student notified", updatedComplaint });
+        res.json({ message: "Status updated", updatedComplaint });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
