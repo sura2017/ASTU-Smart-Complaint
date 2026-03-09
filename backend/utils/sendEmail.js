@@ -2,17 +2,17 @@ const nodemailer = require('nodemailer');
 
 const sendEmail = async (to, subject, text, html) => {
     try {
-        // We use port 587 (STARTTLS) which is more stable on Render than 465
         const transporter = nodemailer.createTransport({
             host: 'smtp.gmail.com',
             port: 587,
-            secure: false, // Must be false for port 587
+            secure: false, 
             auth: {
                 user: process.env.EMAIL_USER,
                 pass: process.env.EMAIL_PASS,
             },
+            // --- CRITICAL FIX FOR ENETUNREACH ---
+            family: 4, // Forces Nodemailer to use IPv4 instead of IPv6
             tls: {
-                // This prevents the "Unreachable" error on some cloud networks
                 rejectUnauthorized: false 
             }
         });
@@ -26,12 +26,11 @@ const sendEmail = async (to, subject, text, html) => {
         };
 
         const info = await transporter.sendMail(mailOptions);
-        console.log("📧 Success: Email delivered to", to);
+        console.log("📧 Success: Email sent via IPv4 to", to);
         return info;
     } catch (error) {
-        // Detailed logging to help you during the demo
         console.error("❌ NODEMAILER ERROR:", error.message);
-        throw error; // Pass the error to the controller
+        throw error; 
     }
 };
 
