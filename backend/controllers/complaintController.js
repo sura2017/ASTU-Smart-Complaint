@@ -42,16 +42,17 @@ exports.submitComplaint = async (req, res) => {
                     <h2 style="color: #1e3a8a;">ASTU Smart Support</h2>
                     <p>Hello <b>${student.name}</b>,</p>
                     <p>Your ticket has been successfully logged. Tracking ID: <b>#${trackingID}</b>.</p>
-                    <div style="background: #f8fafc; padding: 15px; border-radius: 10px; margin: 15px 0;">
+                    <div style="background-color: #f8fafc; padding: 15px; border-radius: 10px; margin: 15px 0;">
                         <p><b>Subject:</b> ${title}</p>
                         <p><b>Status:</b> OPEN</p>
                     </div>
                     <p>Maintenance staff will review this shortly.</p>
                 </div>
             `;
-            sendEmail(student.email, `Ticket Received [#${trackingID}]`, `Ticket confirmed`, studentHtml);
+            // CRITICAL: Added 'await' to ensure email sends before response
+            await sendEmail(student.email, `Ticket Received [#${trackingID}]`, `Ticket confirmed`, studentHtml);
 
-            // --- 3. Email to Administrator (Alerting Sura) ---
+            // --- 3. Email to Administrator (Alerting You) ---
             const adminHtml = `
                 <div style="font-family: sans-serif; border: 2px solid #3b82f6; padding: 20px; border-radius: 15px;">
                     <h2 style="color: #1e3a8a;">🚨 New Campus Issue Reported</h2>
@@ -63,41 +64,18 @@ exports.submitComplaint = async (req, res) => {
                     <a href="https://astu-smart-complaint-zeta.vercel.app/admin" style="background: #1e3a8a; color: white; padding: 12px 25px; text-decoration: none; border-radius: 8px; font-weight: bold;">Access Admin Portal</a>
                 </div>
             `;
-            // Use ADMIN_EMAIL from env (abrhamsura85@gmail.com)
-            sendEmail(process.env.ADMIN_EMAIL, "NEW TICKET ALERT: " + title, "Action required", adminHtml);
+            // CRITICAL: Added 'await' and ensures ADMIN_EMAIL is used
+            await sendEmail(process.env.ADMIN_EMAIL, "NEW TICKET ALERT: " + title, "Action required", adminHtml);
         }
 
         res.status(201).json({ message: "Complaint submitted and notifications sent!", complaint: newComplaint });
     } catch (err) {
-        console.error("Submission Error:", err);
+        console.error("Submission Error:", err.message);
         res.status(500).json({ error: err.message });
     }
 };
 
-// 2. Get complaints for a specific student
-exports.getStudentComplaints = async (req, res) => {
-    try {
-        const { studentId } = req.params;
-        const complaints = await Complaint.find({ student: studentId }).sort({ createdAt: -1 });
-        res.json(complaints);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-};
-
-// 3. Get ALL complaints (Admin)
-exports.getAllComplaints = async (req, res) => {
-    try {
-        const complaints = await Complaint.find()
-            .populate('student', 'name email')
-            .sort({ createdAt: -1 });
-        res.json(complaints);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-};
-
-// 4. Update Complaint Status (Admin Updates -> Student gets notified)
+// 2. Update Complaint Status (Admin Updates -> Student gets notified)
 exports.updateComplaintStatus = async (req, res) => {
     try {
         const { id } = req.params;
@@ -133,33 +111,43 @@ exports.updateComplaintStatus = async (req, res) => {
         `;
 
         if (updatedComplaint.student.email) {
-            sendEmail(updatedComplaint.student.email, `Update on Ticket #${trackingID}`, `Status: ${status}`, emailHtml);
+            // CRITICAL: Added 'await'
+            await sendEmail(updatedComplaint.student.email, `Update on Ticket #${trackingID}`, `Status: ${status}`, emailHtml);
         }
 
         res.json({ message: "Status updated and student notified", updatedComplaint });
 
     } catch (err) {
+        console.error("Update Status Email Error:", err.message);
         res.status(500).json({ error: err.message });
     }
 };
 
-// 5. Get Notifications
+// --- OTHERS STAY THE SAME ---
+exports.getStudentComplaints = async (req, res) => {
+    try {
+        const complaints = await Complaint.find({ student: req.params.studentId }).sort({ createdAt: -1 });
+        res.json(complaints);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+};
+
+exports.getAllComplaints = async (req, res) => {
+    try {
+        const complaints = await Complaint.find().populate('student', 'name email').sort({ createdAt: -1 });
+        res.json(complaints);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+};
+
 exports.getNotifications = async (req, res) => {
     try {
-        const { userId } = req.params;
-        const notifications = await Notification.find({ recipient: userId }).sort({ createdAt: -1 }).limit(10);
+        const notifications = await Notification.find({ recipient: req.params.userId }).sort({ createdAt: -1 }).limit(10);
         res.json(notifications);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
+    } catch (err) { res.status(500).json({ error: err.message }); }
 };
 
-// 6. Mark Read
 exports.markAsRead = async (req, res) => {
     try {
         await Notification.updateMany({ recipient: req.params.userId }, { isRead: true });
         res.json({ message: "Read" });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
+    } catch (err) { res.status(500).json({ error: err.message }); }
 };

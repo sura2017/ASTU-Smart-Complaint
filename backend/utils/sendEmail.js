@@ -1,13 +1,11 @@
 const nodemailer = require('nodemailer');
 
 const sendEmail = async (to, subject, text, html) => {
+    console.log(`Attempting to send email to: ${to}...`); // LOG 1
+    
     try {
         const transporter = nodemailer.createTransport({
             service: 'gmail',
-            // Use host for better reliability on live servers
-            host: 'smtp.gmail.com',
-            port: 465,
-            secure: true, 
             auth: {
                 user: process.env.EMAIL_USER,
                 pass: process.env.EMAIL_PASS,
@@ -23,9 +21,9 @@ const sendEmail = async (to, subject, text, html) => {
         };
 
         const info = await transporter.sendMail(mailOptions);
-        console.log("📧 Success: Email sent to", to, "| ID:", info.messageId);
+        console.log("✅ NODEMAILER SUCCESS:", info.response); // LOG 2
     } catch (error) {
-        console.error("❌ Nodemailer Error:", error.message);
+        console.error("❌ NODEMAILER CRASH:", error.message); // LOG 3
     }
 };
 
