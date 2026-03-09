@@ -3,7 +3,7 @@ const Notification = require('../models/Notification');
 const User = require('../models/User');
 const sendEmail = require('../utils/sendEmail');
 
-// 1. Submit a new complaint (Student Submits -> Student & Admin get notified)
+// 1. Submit a new complaint (Fault-Tolerant Version)
 exports.submitComplaint = async (req, res) => {
     try {
         const { studentId, title, description, category } = req.body;
@@ -12,9 +12,9 @@ exports.submitComplaint = async (req, res) => {
             return res.status(400).json({ message: "Student ID is required." });
         }
 
-        // Clean path for cross-platform compatibility
         const attachmentUrl = req.file ? req.file.path.replace(/\\/g, "/") : null;
 
+        // STEP 1: SAVE TO DATABASE FIRST
         const newComplaint = new Complaint({
             student: studentId,
             title,
@@ -26,62 +26,59 @@ exports.submitComplaint = async (req, res) => {
         await newComplaint.save();
         const trackingID = newComplaint._id.toString().slice(-8).toUpperCase();
 
-        // Find the student to get their email and name
-        const student = await User.findById(studentId);
-
-        // --- 1. Create In-App Notification for Student ---
+        // STEP 2: CREATE IN-APP NOTIFICATION
         await Notification.create({
             recipient: studentId,
-            message: `Submission Successful: Ticket #${trackingID} is now OPEN.`,
+            message: `Ticket #${trackingID} opened successfully.`,
             complaintId: newComplaint._id
         });
 
-        if (student) {
-            // --- 2. Email to Student (Confirmation) ---
-            const studentHtml = `
-                <div style="font-family: sans-serif; max-width: 600px; border: 1px solid #eee; padding: 20px; border-radius: 15px;">
-                    <h2 style="color: #1e3a8a;">ASTU Smart Support</h2>
-                    <p>Hello <b>${student.name}</b>,</p>
-                    <p>Your ticket has been successfully logged. Tracking ID: <b>#${trackingID}</b>.</p>
-                    <div style="background-color: #f8fafc; padding: 15px; border-radius: 10px; margin: 15px 0;">
-                        <p style="margin:0;"><b>Subject:</b> ${title}</p>
-                        <p style="margin:0;"><b>Status:</b> OPEN</p>
-                    </div>
-                    <p>Maintenance staff will review this shortly.</p>
-                </div>
-            `;
-            // Force await to catch network errors
-            await sendEmail(student.email, `Ticket Received [#${trackingID}]`, `Ticket confirmed`, studentHtml);
+        // STEP 3: RESPOND TO FRONTEND IMMEDIATELY (Before Email)
+        // This stops the "Submission Failed" error on the website
+        res.status(201).json({ 
+            message: "Complaint submitted successfully!", 
+            complaint: newComplaint 
+        });
 
-            // --- 3. Email to Administrator (Alerting Admin) ---
-            const adminHtml = `
-                <div style="font-family: sans-serif; border: 2px solid #3b82f6; padding: 20px; border-radius: 15px;">
-                    <h2 style="color: #1e3a8a;">🚨 New Campus Issue Reported</h2>
-                    <p><b>From Student:</b> ${student.name} (${student.email})</p>
-                    <p><b>Department:</b> ${category}</p>
-                    <p><b>Subject:</b> ${title}</p>
-                    <p><b>Tracking ID:</b> #${trackingID}</p>
-                    <br/>
-                    <a href="https://astu-smart-complaint-zeta.vercel.app/admin" style="background: #1e3a8a; color: white; padding: 12px 25px; text-decoration: none; border-radius: 8px; font-weight: bold;">Access Admin Portal</a>
-                </div>
-            `;
-            await sendEmail(process.env.ADMIN_EMAIL, "NEW TICKET ALERT: " + title, "Action required", adminHtml);
-        }
+        // STEP 4: SEND EMAILS IN THE BACKGROUND (Non-blocking)
+        // We do NOT use 'await' on this whole block so the student doesn't wait
+        const triggerBackgroundEmails = async () => {
+            try {
+                const student = await User.findById(studentId);
+                if (student && student.email) {
+                    // Email to Student
+                    const studentHtml = `
+                        <div style="font-family: sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 15px;">
+                            <h2 style="color: #1e3a8a;">ASTU Smart Support</h2>
+                            <p>Hello <b>${student.name}</b>,</p>
+                            <p>Ticket <b>#${trackingID}</b> has been logged.</p>
+                        </div>
+                    `;
+                    await sendEmail(student.email, `Ticket Received [#${trackingID}]`, `Confirmed`, studentHtml);
 
-        res.status(201).json({ message: "Complaint submitted and notifications sent!", complaint: newComplaint });
+                    // Email to Admin (Sura)
+                    const adminHtml = `<h2>🚨 New Ticket Alert</h2><p>Student: ${student.name}</p><p>Issue: ${title}</p>`;
+                    await sendEmail(process.env.ADMIN_EMAIL, "NEW TICKET ALERT: " + title, "Alert", adminHtml);
+                }
+            } catch (mailError) {
+                console.error("⚠️ Background Email Delay/Error:", mailError.message);
+            }
+        };
+
+        triggerBackgroundEmails(); // Execute without blocking res.status(201)
+
     } catch (err) {
-        console.error("Submission Error:", err.message);
-        res.status(500).json({ error: err.message });
+        console.error("❌ Critical Submission Error:", err.message);
+        res.status(500).json({ error: "Server Error", details: err.message });
     }
 };
 
-// 2. Update Complaint Status (Admin Updates -> Student gets notified)
+// 2. Update Complaint Status (Fault-Tolerant Version)
 exports.updateComplaintStatus = async (req, res) => {
     try {
         const { id } = req.params;
         const { status } = req.body;
 
-        // FIXED: Using returnDocument: 'after' to resolve Mongoose deprecation warning
         const updatedComplaint = await Complaint.findByIdAndUpdate(
             id, 
             { status }, 
@@ -90,35 +87,26 @@ exports.updateComplaintStatus = async (req, res) => {
 
         if (!updatedComplaint) return res.status(404).json({ message: "Ticket not found" });
 
-        // --- 1. Create In-App Notification ---
+        // Create in-app notification
         await Notification.create({
             recipient: updatedComplaint.student._id,
             message: `Ticket Update: Your issue "${updatedComplaint.title}" is now ${status.toUpperCase()}.`,
             complaintId: updatedComplaint._id
         });
 
-        // --- 2. Email to Student (Status Update Alert) ---
-        const trackingID = updatedComplaint._id.toString().slice(-8).toUpperCase();
-        const statusColor = status === 'Resolved' ? '#059669' : '#2563eb';
-        
-        const emailHtml = `
-            <div style="font-family: sans-serif; max-width: 600px; border: 1px solid #e2e8f0; padding: 30px; border-radius: 20px;">
-                <h2 style="color: #1e3a8a;">ASTU Ticket Update</h2>
-                <p>Hello <b>${updatedComplaint.student.name}</b>,</p>
-                <p>The status of your ticket <b>#${trackingID}</b> has been changed.</p>
-                <div style="background-color: #f1f5f9; padding: 20px; border-radius: 12px; margin: 20px 0;">
-                    <p style="margin: 0; color: #64748b; font-size: 11px; font-weight: bold; text-transform: uppercase;">New Status</p>
-                    <p style="margin: 5px 0 0 0; font-size: 20px; font-weight: bold; color: ${statusColor};">${status.toUpperCase()}</p>
-                </div>
-                <p>Log in to the student portal to view updates.</p>
-            </div>
-        `;
+        // Respond to Admin immediately
+        res.json({ message: "Status updated", updatedComplaint });
 
-        if (updatedComplaint.student.email) {
-            await sendEmail(updatedComplaint.student.email, `Update on Ticket #${trackingID}`, `Status: ${status}`, emailHtml);
-        }
-
-        res.json({ message: "Status updated and student notified", updatedComplaint });
+        // Send Email in background
+        (async () => {
+            try {
+                const trackingID = updatedComplaint._id.toString().slice(-8).toUpperCase();
+                const emailHtml = `<h2>ASTU Update</h2><p>Ticket #${trackingID} is now ${status.toUpperCase()}.</p>`;
+                await sendEmail(updatedComplaint.student.email, `Ticket Update #${trackingID}`, `Status: ${status}`, emailHtml);
+            } catch (mailErr) {
+                console.error("⚠️ Background Status Email Error:", mailErr.message);
+            }
+        })();
 
     } catch (err) {
         console.error("Update Status Error:", err.message);
@@ -126,7 +114,7 @@ exports.updateComplaintStatus = async (req, res) => {
     }
 };
 
-// 3. Get student specific complaints
+// --- OTHERS ---
 exports.getStudentComplaints = async (req, res) => {
     try {
         const complaints = await Complaint.find({ student: req.params.studentId }).sort({ createdAt: -1 });
@@ -134,7 +122,6 @@ exports.getStudentComplaints = async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 };
 
-// 4. Get all complaints for Admin
 exports.getAllComplaints = async (req, res) => {
     try {
         const complaints = await Complaint.find().populate('student', 'name email').sort({ createdAt: -1 });
@@ -142,7 +129,6 @@ exports.getAllComplaints = async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 };
 
-// 5. Get Notifications
 exports.getNotifications = async (req, res) => {
     try {
         const notifications = await Notification.find({ recipient: req.params.userId }).sort({ createdAt: -1 }).limit(10);
@@ -150,7 +136,6 @@ exports.getNotifications = async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 };
 
-// 6. Mark as Read
 exports.markAsRead = async (req, res) => {
     try {
         await Notification.updateMany({ recipient: req.params.userId }, { isRead: true });
